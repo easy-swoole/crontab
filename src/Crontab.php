@@ -35,7 +35,7 @@ class Crontab
         $this->scheduleTable->create();
 
         $this->workerStatisticTable = new Table(1024);
-        $this->scheduleTable->column('runningNum', Table::TYPE_INT, 8);
+        $this->workerStatisticTable->column('runningNum', Table::TYPE_INT, 8);
         $this->workerStatisticTable->create();
     }
 
@@ -69,6 +69,10 @@ class Crontab
 
         for($i = 0;$i < $this->config->getWorkerNum();$i++)
         {
+            //设置统计table信息
+            $this->workerStatisticTable->set($i,[
+                'runningNum'=>0
+            ]);
             $c = new UnixProcessConfig();
             $c->setEnableCoroutine(true);
             $c->setProcessName("{$this->config->getServerName()}.CrontabWorker.{$i}");
@@ -77,11 +81,27 @@ class Crontab
                 'jobs'=>$this->jobs,
                 'scheduleTable'=>$this->scheduleTable,
                 'workerStatisticTable'=>$this->workerStatisticTable,
-                'crontabInstance'=>$this
+                'crontabInstance'=>$this,
+                'workerIndex'=>$i
             ]);
             $c->setSocketFile($this->indexToSockFile($i));
             $server->addProcess((new Worker($c))->getProcess());
         }
+    }
+
+    public function rightNow($jobName)
+    {
+
+    }
+
+    function resetJobRule($jobName, $taskRule)
+    {
+
+    }
+
+    private function idleWorkerIndex():int
+    {
+        return 0;
     }
 
     private function indexToSockFile(int $index):string
