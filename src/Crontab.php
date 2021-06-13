@@ -7,6 +7,10 @@ namespace EasySwoole\Crontab;
 use EasySwoole\Component\Process\Socket\UnixProcessConfig;
 use EasySwoole\Component\Singleton;
 use EasySwoole\Crontab\Exception\Exception;
+use EasySwoole\Crontab\Protocol\Command;
+use EasySwoole\Crontab\Protocol\Pack;
+use EasySwoole\Crontab\Protocol\Response;
+use EasySwoole\Crontab\Protocol\UnixClient;
 use Swoole\Server;
 use Swoole\Table;
 use EasySwoole\Component\Process\Config as ProcessConfig;
@@ -89,7 +93,28 @@ class Crontab
         }
     }
 
-    public function rightNow($jobName)
+    public function rightNow(string $jobName)
+    {
+
+    }
+
+    public function stop(string $jobName)
+    {
+
+    }
+
+    public function stopAll()
+    {
+
+    }
+
+    public function start(string $jobName)
+    {
+
+
+    }
+
+    public function startAll()
     {
 
     }
@@ -101,12 +126,37 @@ class Crontab
 
     private function idleWorkerIndex():int
     {
-        return 0;
+        $index = 0;
+        $min = null;
+        foreach ($this->workerStatisticTable as $key => $item){
+            $runningNum = intval($item['runningNum']);
+            if($min === null){
+                $min = $runningNum;
+            }
+            if($runningNum < $min){
+                $index = $key;
+                $min = $runningNum;
+            }
+        }
+        return $index;
     }
 
     private function indexToSockFile(int $index):string
     {
         return $this->config->getTempDir()."/{$this->config->getServerName()}.CrontabWorker.{$index}.sock";
+    }
+
+    private function sendToWorker(Command $command,int $index):?Response
+    {
+        $data = Pack::pack(serialize($command));
+        $client = new UnixClient($this->indexToSockFile($index),10*1024*1024);
+        $client->send($data);
+        $data = $client->recv(3);
+        if($data){
+
+        }else{
+
+        }
     }
 
 }
