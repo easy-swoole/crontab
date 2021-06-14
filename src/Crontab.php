@@ -11,6 +11,7 @@ use EasySwoole\Crontab\Protocol\Command;
 use EasySwoole\Crontab\Protocol\Pack;
 use EasySwoole\Crontab\Protocol\Response;
 use EasySwoole\Crontab\Protocol\UnixClient;
+use EasySwoole\Spl\SplBean;
 use Swoole\Server;
 use Swoole\Table;
 use EasySwoole\Component\Process\Config as ProcessConfig;
@@ -93,9 +94,12 @@ class Crontab
         }
     }
 
-    public function rightNow(string $jobName)
+    public function rightNow(string $jobName):?Response
     {
-
+        $request = new Command();
+        $request->setCommand(Command::COMMAND_EXEC_JOB);
+        $request->setArg($jobName);
+        return $this->sendToWorker($request,$this->idleWorkerIndex());
     }
 
     public function stop(string $jobName)
@@ -153,9 +157,14 @@ class Crontab
         $client->send($data);
         $data = $client->recv(3);
         if($data){
-
+            $data = unserialize($data);
+            if($data instanceof Response){
+                return $data;
+            }else{
+                return (new Response())->setStatus(Response::STATUS_ILLEGAL_PACKAGE)->setMsg('unserialize response as an Response instance fail');
+            }
         }else{
-
+            return (new Response())->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv timeout from worker');
         }
     }
 

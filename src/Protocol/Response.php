@@ -33,9 +33,10 @@ class Response extends SplBean
     /**
      * @param mixed $status
      */
-    public function setStatus($status): void
+    public function setStatus($status): Response
     {
         $this->status = $status;
+        return $this;
     }
 
     /**
@@ -65,8 +66,9 @@ class Response extends SplBean
     /**
      * @param mixed $msg
      */
-    public function setMsg($msg): void
+    public function setMsg($msg):Response
     {
         $this->msg = $msg;
+        return $this;
     }
 }

@@ -39,20 +39,20 @@ class Worker extends AbstractUnixProcess
 
         $header = $socket->recvAll(4,1);
         if(strlen($header) != 4){
-            $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT);
+            $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv from client timeout');
             $this->reply($socket,$response);
             return;
         }
         $allLength = Pack::packDataLength($header);
         $data = $socket->recvAll($allLength, 1);
         if (strlen($data) != $allLength) {
-            $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT);
+            $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv from client timeout');
             $this->reply($socket,$response);
             return;
         }
         $data = unserialize($data);
         if(!$data instanceof Command){
-            $response->setStatus(Response::STATUS_ILLEGAL_PACKAGE);
+            $response->setStatus(Response::STATUS_ILLEGAL_PACKAGE)->setMsg('unserialize request as an Command instance fail');
             $this->reply($socket,$response);
             return;
         }
