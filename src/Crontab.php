@@ -4,17 +4,17 @@
 namespace EasySwoole\Crontab;
 
 
-use Cron\CronExpression;
 use EasySwoole\Component\Process\Socket\UnixProcessConfig;
 use EasySwoole\Component\Singleton;
-use EasySwoole\Crontab\Exception\CronTaskRuleInvalid;
 use EasySwoole\Crontab\Exception\Exception;
 use EasySwoole\Crontab\Protocol\Command;
 use EasySwoole\Crontab\Protocol\Pack;
 use EasySwoole\Crontab\Protocol\Response;
 use EasySwoole\Crontab\Protocol\UnixClient;
+use EasySwoole\Spl\SplBean;
 use Swoole\Server;
 use Swoole\Table;
+use EasySwoole\Component\Process\Config as ProcessConfig;
 
 class Crontab
 {
@@ -25,8 +25,6 @@ class Crontab
     private $jobs = [];
     /** @var Config */
     private $config;
-    private $hashAttach = false;
-
     function __construct(?Config $config = null)
     {
         if($config == null){
@@ -51,16 +49,8 @@ class Crontab
         return $this->config;
     }
 
-    function scheduleTable():Table
-    {
-        return $this->scheduleTable;
-    }
-
     public function register(JobInterface $job):Crontab
     {
-        if (!CronExpression::isValidExpression($job->crontabRule())) {
-            throw new CronTaskRuleInvalid("{$job->jobName()} rule: {$job->crontabRule()} not a valid cron rule");
-        }
         if(!isset($this->jobs[$job->jobName()])){
             $this->jobs[$job->jobName()] = $job;
             return $this;
@@ -69,22 +59,12 @@ class Crontab
         }
     }
 
-    function remove(string $jobName)
-    {
-
-    }
-
-    function dynamicRegister(JobInterface $job)
-    {
-
-    }
-
     public function __attachServer(Server $server)
     {
         if(empty($this->jobs)){
             return;
         }
-        $c = new UnixProcessConfig();
+        $c = new ProcessConfig();
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
         $c->setProcessGroup("EasySwoole.Crontab");
@@ -93,7 +73,6 @@ class Crontab
             'scheduleTable'=>$this->scheduleTable,
             'crontabInstance'=>$this
         ]);
-        $c->setSocketFile("{$this->config->getTempDir()}/{$this->config->getServerName()}.CrontabScheduler.sock");
         $server->addProcess((new Scheduler($c))->getProcess());
 
         for($i = 0;$i < $this->config->getWorkerNum();$i++)
@@ -162,13 +141,10 @@ class Crontab
         return true;
     }
 
-    function resetJobRule($jobName, $jobRule):bool
+    function resetJobRule($jobName, $taskRule):bool
     {
-        if (!CronExpression::isValidExpression($jobRule)) {
-            throw new CronTaskRuleInvalid("{$jobName} rule: {$jobRule} not a valid cron rule");
-        }
         if(isset($this->jobs[$jobName])){
-            $this->scheduleTable->set($jobName,['taskRule'=>$jobRule]);
+            $this->scheduleTable->set($jobName,['taskRule'=>$taskRule]);
             return true;
         }else{
             return false;
@@ -214,11 +190,6 @@ class Crontab
         }else{
             return (new Response())->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv timeout from worker');
         }
-    }
-
-    private function sendToScheduler(Command $command)
-    {
-
     }
 
 }
