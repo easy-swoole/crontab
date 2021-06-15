@@ -5,11 +5,12 @@ namespace EasySwoole\Crontab;
 
 
 use Cron\CronExpression;
-use EasySwoole\Component\Process\AbstractProcess;
+use EasySwoole\Component\Process\Socket\AbstractUnixProcess;
 use EasySwoole\Component\Timer;
+use Swoole\Coroutine\Socket;
 use Swoole\Table;
 
-class Scheduler extends AbstractProcess
+class Scheduler extends AbstractUnixProcess
 {
     /** @var Table */
     private $scheduleTable;
@@ -19,7 +20,7 @@ class Scheduler extends AbstractProcess
 
     private $timerIds = [];
 
-    protected function run($arg)
+    public function run($arg)
     {
         $this->crontabInstance = $arg['crontabInstance'];
         $this->scheduleTable =  $arg['scheduleTable'];
@@ -46,7 +47,15 @@ class Scheduler extends AbstractProcess
         Timer::getInstance()->loop(8 * 1000, function () {
             $this->cronProcess();
         });
+
+        parent::run($arg);
     }
+
+    function onAccept(Socket $socket)
+    {
+
+    }
+
 
     private function cronProcess()
     {
