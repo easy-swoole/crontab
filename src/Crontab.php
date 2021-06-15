@@ -61,6 +61,9 @@ class Crontab
 
     public function __attachServer(Server $server)
     {
+        if(empty($this->jobs)){
+            return;
+        }
         $c = new ProcessConfig();
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
@@ -102,30 +105,50 @@ class Crontab
         return $this->sendToWorker($request,$this->idleWorkerIndex());
     }
 
-    public function stop(string $jobName)
+    public function stop(string $jobName):bool
     {
-
+        if(isset($this->jobs[$jobName])){
+            $this->scheduleTable->set($jobName,['isStop'=>1]);
+            return true;
+        }else{
+            return false;
+        }
     }
 
-    public function stopAll()
+    public function stopAll():bool
     {
-
+        foreach ($this->scheduleTable as $key => $item){
+            $this->scheduleTable->set($key,['isStop'=>1]);
+        }
+        return true;
     }
 
-    public function start(string $jobName)
+    public function start(string $jobName):bool
     {
-
-
+        if(isset($this->jobs[$jobName])){
+            $this->scheduleTable->set($jobName,['isStop'=>0]);
+            return true;
+        }else{
+            return false;
+        }
     }
 
-    public function startAll()
+    public function startAll():bool
     {
-
+        foreach ($this->scheduleTable as $key => $item){
+            $this->scheduleTable->set($key,['isStop'=>0]);
+        }
+        return true;
     }
 
-    function resetJobRule($jobName, $taskRule)
+    function resetJobRule($jobName, $taskRule):bool
     {
-
+        if(isset($this->jobs[$jobName])){
+            $this->scheduleTable->set($jobName,['taskRule'=>$taskRule]);
+            return true;
+        }else{
+            return false;
+        }
     }
 
     private function idleWorkerIndex():int
@@ -157,6 +180,7 @@ class Crontab
         $client->send($data);
         $data = $client->recv(3);
         if($data){
+            $data = Pack::unpack($data);
             $data = unserialize($data);
             if($data instanceof Response){
                 return $data;

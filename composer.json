@@ -19,6 +19,11 @@
             "EasySwoole\\Crontab\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "EasySwoole\\Crontab\\Tests\\": "tests/"
+        }
+    },
     "require-dev": {
         "easyswoole/swoole-ide-helper": "^1.3"
     }

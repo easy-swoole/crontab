@@ -19,7 +19,8 @@ class Worker extends AbstractUnixProcess
     private $workerStatisticTable;
     private $jobs = [];
     private $workerIndex = 0;
-
+    /** @var Table */
+    private $scheduleTable;
 
     public function run($arg)
     {
@@ -29,6 +30,7 @@ class Worker extends AbstractUnixProcess
         $this->workerStatisticTable->set($this->workerIndex,[
             'runningNum'=>0
         ]);
+        $this->scheduleTable = $arg['scheduleTable'];
         $this->jobs = $arg['jobs'];
         parent::run($arg);
     }
@@ -62,6 +64,8 @@ class Worker extends AbstractUnixProcess
                 /** @var JobInterface $job */
                 $job = $this->jobs[$jobName];
                 $this->workerStatisticTable->incr($this->workerIndex,'runningNum',1);
+                $this->scheduleTable->incr($jobName, 'taskRunTimes', 1);
+                $this->scheduleTable->set($jobName, ['taskCurrentRunTime' => time()]);
                 try{
                     $ret = $job->run();
                     $response->setResult($ret);
