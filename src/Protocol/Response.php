@@ -18,6 +18,15 @@ class Response extends SplBean
     const STATUS_JOB_NOT_EXIST = 301;
     const STATUS_JOB_EXEC_ERROR = 302;
 
+    private static $phrases = [
+        self::STATUS_OK => 'OK',
+        self::STATUS_PACKAGE_READ_TIMEOUT => 'crontab: recv unix socket timeout',
+        self::STATUS_ILLEGAL_PACKAGE => 'crontab: unserialize response as an Response instance fail',
+        self::STATUS_UNKNOWN_COMMAND => 'crontab: unknown command',
+        self::STATUS_JOB_NOT_EXIST => 'crontab: job not exist',
+        self::STATUS_JOB_EXEC_ERROR => 'crontab: job exec error'
+    ];
+
     protected $status;
     protected $result;
     protected $msg;
@@ -66,9 +75,14 @@ class Response extends SplBean
     /**
      * @param mixed $msg
      */
-    public function setMsg($msg):Response
+    public function setMsg($msg): Response
     {
         $this->msg = $msg;
         return $this;
+    }
+
+    static function getReasonPhrase($statusCode): ?string
+    {
+        return self::$phrases[$statusCode] ?? '';
     }
 }
