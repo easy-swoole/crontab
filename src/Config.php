@@ -80,7 +80,7 @@ class Config extends SplBean
 
     protected function initialize(): void
     {
-        if(empty($this->tempDir)){
+        if (empty($this->tempDir)) {
             $this->tempDir = getcwd();
         }
     }

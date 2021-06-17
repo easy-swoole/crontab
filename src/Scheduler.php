@@ -12,7 +12,7 @@ use Swoole\Table;
 class Scheduler extends AbstractProcess
 {
     /** @var Table */
-    private $scheduleTable;
+    private $schedulerTable;
 
     /** @var Crontab */
     private $crontabInstance;
@@ -22,14 +22,14 @@ class Scheduler extends AbstractProcess
     protected function run($arg)
     {
         $this->crontabInstance = $arg['crontabInstance'];
-        $this->scheduleTable =  $arg['scheduleTable'];
+        $this->schedulerTable = $arg['schedulerTable'];
         //异常的时候，worker会退出。先清空一遍规则,禁止循环的时候删除key
         $keys = [];
-        foreach ($this->scheduleTable as $key => $value) {
+        foreach ($this->schedulerTable as $key => $value) {
             $keys[] = $key;
         }
         foreach ($keys as $key) {
-            $this->scheduleTable->del($key);
+            $this->schedulerTable->del($key);
         }
 
         $jobs = $arg['jobs'];
@@ -39,7 +39,7 @@ class Scheduler extends AbstractProcess
          */
         foreach ($jobs as $jobName => $job) {
             $nextTime = CronExpression::factory($job->crontabRule())->getNextRunDate()->getTimestamp();
-            $this->scheduleTable->set($jobName, ['taskRule' => $job->crontabRule(), 'taskRunTimes' => 0, 'taskNextRunTime' => $nextTime, 'taskCurrentRunTime' => 0, 'isStop' => 0]);
+            $this->schedulerTable->set($jobName, ['taskRule' => $job->crontabRule(), 'taskRunTimes' => 0, 'taskNextRunTime' => $nextTime, 'taskCurrentRunTime' => 0, 'isStop' => 0]);
         }
         $this->cronProcess();
         //60无法被8整除。
@@ -50,13 +50,13 @@ class Scheduler extends AbstractProcess
 
     private function cronProcess()
     {
-        foreach ($this->scheduleTable as $jobName => $task) {
+        foreach ($this->schedulerTable as $jobName => $task) {
             if (intval($task['isStop']) == 1) {
                 continue;
             }
             $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
             if ($task['taskNextRunTime'] != $nextRunTime) {
-                $this->scheduleTable->set($jobName, ['taskNextRunTime' => $nextRunTime]);
+                $this->schedulerTable->set($jobName, ['taskNextRunTime' => $nextRunTime]);
             }
             //本轮已经创建过任务
             if (isset($this->timerIds[$jobName])) {
@@ -65,13 +65,13 @@ class Scheduler extends AbstractProcess
             $distanceTime = $nextRunTime - time();
             $timerId = Timer::getInstance()->after($distanceTime * 1000, function () use ($jobName) {
                 unset($this->timerIds[$jobName]);
-                try{
+                try {
                     $this->crontabInstance->rightNow($jobName);
-                }catch (\Throwable $throwable){
+                } catch (\Throwable $throwable) {
                     $call = $this->crontabInstance->getConfig()->getOnException();
-                    if(is_callable($call)){
-                        call_user_func($call,$throwable);
-                    }else{
+                    if (is_callable($call)) {
+                        call_user_func($call, $throwable);
+                    } else {
                         throw $throwable;
                     }
                 }

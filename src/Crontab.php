@@ -20,147 +20,152 @@ class Crontab
 {
     use Singleton;
 
-    private $scheduleTable;
+    private $schedulerTable;
     private $workerStatisticTable;
     private $jobs = [];
     /** @var Config */
     private $config;
+
     function __construct(?Config $config = null)
     {
-        if($config == null){
+        if ($config == null) {
             $config = new Config();
         }
         $this->config = $config;
-        $this->scheduleTable = new Table(1024);
-        $this->scheduleTable->column('taskRule', Table::TYPE_STRING, 35);
-        $this->scheduleTable->column('taskRunTimes', Table::TYPE_INT, 8);
-        $this->scheduleTable->column('taskNextRunTime', Table::TYPE_INT, 10);
-        $this->scheduleTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);
-        $this->scheduleTable->column('isStop', Table::TYPE_INT, 1);
-        $this->scheduleTable->create();
+        $this->schedulerTable = new Table(1024);
+        $this->schedulerTable->column('taskRule', Table::TYPE_STRING, 35);
+        $this->schedulerTable->column('taskRunTimes', Table::TYPE_INT, 8);
+        $this->schedulerTable->column('taskNextRunTime', Table::TYPE_INT, 10);
+        $this->schedulerTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);
+        $this->schedulerTable->column('isStop', Table::TYPE_INT, 1);
+        $this->schedulerTable->create();
 
         $this->workerStatisticTable = new Table(1024);
         $this->workerStatisticTable->column('runningNum', Table::TYPE_INT, 8);
         $this->workerStatisticTable->create();
     }
 
-    function getConfig():Config
+    function getConfig(): Config
     {
         return $this->config;
     }
 
-    public function register(JobInterface $job):Crontab
+    public function register(JobInterface $job): Crontab
     {
-        if(!isset($this->jobs[$job->jobName()])){
+        if (!isset($this->jobs[$job->jobName()])) {
             $this->jobs[$job->jobName()] = $job;
             return $this;
-        }else{
+        } else {
             throw new Exception("{$job->jobName()} hash been register");
         }
     }
 
-    public function __attachServer(Server $server)
+    public function attachToServer(Server $server)
     {
-        if(empty($this->jobs)){
+        if (empty($this->jobs)) {
             return;
         }
         $c = new ProcessConfig();
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
-        $c->setProcessGroup("EasySwoole.Crontab");
+        $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
         $c->setArg([
-            'jobs'=>$this->jobs,
-            'scheduleTable'=>$this->scheduleTable,
-            'crontabInstance'=>$this
+            'jobs' => $this->jobs,
+            'schedulerTable' => $this->schedulerTable,
+            'crontabInstance' => $this
         ]);
         $server->addProcess((new Scheduler($c))->getProcess());
 
-        for($i = 0;$i < $this->config->getWorkerNum();$i++)
-        {
+        for ($i = 0; $i < $this->config->getWorkerNum(); $i++) {
             //设置统计table信息
-            $this->workerStatisticTable->set($i,[
-                'runningNum'=>0
+            $this->workerStatisticTable->set($i, [
+                'runningNum' => 0
             ]);
             $c = new UnixProcessConfig();
             $c->setEnableCoroutine(true);
             $c->setProcessName("{$this->config->getServerName()}.CrontabWorker.{$i}");
-            $c->setProcessGroup("EasySwoole.Crontab");
+            $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
             $c->setArg([
-                'jobs'=>$this->jobs,
-                'scheduleTable'=>$this->scheduleTable,
-                'workerStatisticTable'=>$this->workerStatisticTable,
-                'crontabInstance'=>$this,
-                'workerIndex'=>$i
+                'jobs' => $this->jobs,
+                'schedulerTable' => $this->schedulerTable,
+                'workerStatisticTable' => $this->workerStatisticTable,
+                'crontabInstance' => $this,
+                'workerIndex' => $i
             ]);
             $c->setSocketFile($this->indexToSockFile($i));
             $server->addProcess((new Worker($c))->getProcess());
         }
     }
 
-    public function rightNow(string $jobName):?Response
+    public function rightNow(string $jobName): ?Response
     {
         $request = new Command();
         $request->setCommand(Command::COMMAND_EXEC_JOB);
         $request->setArg($jobName);
-        return $this->sendToWorker($request,$this->idleWorkerIndex());
+        return $this->sendToWorker($request, $this->idleWorkerIndex());
     }
 
-    public function stop(string $jobName):bool
+    public function stop(string $jobName): bool
     {
-        if(isset($this->jobs[$jobName])){
-            $this->scheduleTable->set($jobName,['isStop'=>1]);
+        if (isset($this->jobs[$jobName])) {
+            $this->schedulerTable->set($jobName, ['isStop' => 1]);
             return true;
-        }else{
+        } else {
             return false;
         }
     }
 
-    public function stopAll():bool
+    public function stopAll(): bool
     {
-        foreach ($this->scheduleTable as $key => $item){
-            $this->scheduleTable->set($key,['isStop'=>1]);
+        foreach ($this->schedulerTable as $key => $item) {
+            $this->schedulerTable->set($key, ['isStop' => 1]);
         }
         return true;
     }
 
-    public function start(string $jobName):bool
+    public function resume(string $jobName): bool
     {
-        if(isset($this->jobs[$jobName])){
-            $this->scheduleTable->set($jobName,['isStop'=>0]);
+        if (isset($this->jobs[$jobName])) {
+            $this->schedulerTable->set($jobName, ['isStop' => 0]);
             return true;
-        }else{
+        } else {
             return false;
         }
     }
 
-    public function startAll():bool
+    public function resumeAll(): bool
     {
-        foreach ($this->scheduleTable as $key => $item){
-            $this->scheduleTable->set($key,['isStop'=>0]);
+        foreach ($this->schedulerTable as $key => $item) {
+            $this->schedulerTable->set($key, ['isStop' => 0]);
         }
         return true;
     }
 
-    function resetJobRule($jobName, $taskRule):bool
+    function resetJobRule($jobName, $taskRule): bool
     {
-        if(isset($this->jobs[$jobName])){
-            $this->scheduleTable->set($jobName,['taskRule'=>$taskRule]);
+        if (isset($this->jobs[$jobName])) {
+            $this->schedulerTable->set($jobName, ['taskRule' => $taskRule]);
             return true;
-        }else{
+        } else {
             return false;
         }
     }
 
-    private function idleWorkerIndex():int
+    function schedulerTable(): Table
+    {
+        return $this->schedulerTable;
+    }
+
+    private function idleWorkerIndex(): int
     {
         $index = 0;
         $min = null;
-        foreach ($this->workerStatisticTable as $key => $item){
+        foreach ($this->workerStatisticTable as $key => $item) {
             $runningNum = intval($item['runningNum']);
-            if($min === null){
+            if ($min === null) {
                 $min = $runningNum;
             }
-            if($runningNum < $min){
+            if ($runningNum < $min) {
                 $index = $key;
                 $min = $runningNum;
             }
@@ -168,26 +173,26 @@ class Crontab
         return $index;
     }
 
-    private function indexToSockFile(int $index):string
+    private function indexToSockFile(int $index): string
     {
-        return $this->config->getTempDir()."/{$this->config->getServerName()}.CrontabWorker.{$index}.sock";
+        return $this->config->getTempDir() . "/{$this->config->getServerName()}.CrontabWorker.{$index}.sock";
     }
 
-    private function sendToWorker(Command $command,int $index):?Response
+    private function sendToWorker(Command $command, int $index): ?Response
     {
         $data = Pack::pack(serialize($command));
-        $client = new UnixClient($this->indexToSockFile($index),10*1024*1024);
+        $client = new UnixClient($this->indexToSockFile($index), 10 * 1024 * 1024);
         $client->send($data);
         $data = $client->recv(3);
-        if($data){
+        if ($data) {
             $data = Pack::unpack($data);
             $data = unserialize($data);
-            if($data instanceof Response){
+            if ($data instanceof Response) {
                 return $data;
-            }else{
+            } else {
                 return (new Response())->setStatus(Response::STATUS_ILLEGAL_PACKAGE)->setMsg('unserialize response as an Response instance fail');
             }
-        }else{
+        } else {
             return (new Response())->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv timeout from worker');
         }
     }

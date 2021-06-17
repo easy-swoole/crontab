@@ -20,17 +20,17 @@ class Worker extends AbstractUnixProcess
     private $jobs = [];
     private $workerIndex = 0;
     /** @var Table */
-    private $scheduleTable;
+    private $schedulerTable;
 
     public function run($arg)
     {
         $this->crontabInstance = $arg['crontabInstance'];
         $this->workerStatisticTable = $arg['workerStatisticTable'];
         $this->workerIndex = $arg['workerIndex'];
-        $this->workerStatisticTable->set($this->workerIndex,[
-            'runningNum'=>0
+        $this->workerStatisticTable->set($this->workerIndex, [
+            'runningNum' => 0
         ]);
-        $this->scheduleTable = $arg['scheduleTable'];
+        $this->schedulerTable = $arg['schedulerTable'];
         $this->jobs = $arg['jobs'];
         parent::run($arg);
     }
@@ -39,64 +39,64 @@ class Worker extends AbstractUnixProcess
     {
         $response = new Response();
 
-        $header = $socket->recvAll(4,1);
-        if(strlen($header) != 4){
+        $header = $socket->recvAll(4, 1);
+        if (strlen($header) != 4) {
             $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv from client timeout');
-            $this->reply($socket,$response);
+            $this->reply($socket, $response);
             return;
         }
         $allLength = Pack::packDataLength($header);
         $data = $socket->recvAll($allLength, 1);
         if (strlen($data) != $allLength) {
             $response->setStatus(Response::STATUS_PACKAGE_READ_TIMEOUT)->setMsg('recv from client timeout');
-            $this->reply($socket,$response);
+            $this->reply($socket, $response);
             return;
         }
         $data = unserialize($data);
-        if(!$data instanceof Command){
+        if (!$data instanceof Command) {
             $response->setStatus(Response::STATUS_ILLEGAL_PACKAGE)->setMsg('unserialize request as an Command instance fail');
-            $this->reply($socket,$response);
+            $this->reply($socket, $response);
             return;
         }
-        if($data->getCommand() === Command::COMMAND_EXEC_JOB){
+        if ($data->getCommand() === Command::COMMAND_EXEC_JOB) {
             $jobName = $data->getArg();
-            if(isset($this->jobs[$jobName])){
+            if (isset($this->jobs[$jobName])) {
                 /** @var JobInterface $job */
                 $job = $this->jobs[$jobName];
-                $this->workerStatisticTable->incr($this->workerIndex,'runningNum',1);
-                $this->scheduleTable->incr($jobName, 'taskRunTimes', 1);
-                $this->scheduleTable->set($jobName, ['taskCurrentRunTime' => time()]);
-                try{
+                $this->workerStatisticTable->incr($this->workerIndex, 'runningNum', 1);
+                $this->schedulerTable->incr($jobName, 'taskRunTimes', 1);
+                $this->schedulerTable->set($jobName, ['taskCurrentRunTime' => time()]);
+                try {
                     $ret = $job->run();
                     $response->setResult($ret);
                     $response->setStatus(Response::STATUS_OK);
-                }catch (\Throwable $throwable) {
+                } catch (\Throwable $throwable) {
                     $response->setStatus(Response::STATUS_JOB_EXEC_ERROR);
-                    try{
+                    try {
                         $job->onException($throwable);
-                    }catch (\Throwable $t){
+                    } catch (\Throwable $t) {
                         $call = $this->crontabInstance->getConfig()->getOnException();
-                        if(is_callable($call)){
-                            call_user_func($call,$t);
-                        }else{
+                        if (is_callable($call)) {
+                            call_user_func($call, $t);
+                        } else {
                             throw $t;
                         }
                     }
-                }finally {
-                    $this->workerStatisticTable->decr($this->workerIndex,'runningNum',1);
-                    $this->reply($socket,$response);
+                } finally {
+                    $this->workerStatisticTable->decr($this->workerIndex, 'runningNum', 1);
+                    $this->reply($socket, $response);
                 }
-            }else{
+            } else {
                 $response->setStatus(Response::STATUS_JOB_NOT_EXIST);
-                $this->reply($socket,$response);
+                $this->reply($socket, $response);
             }
-        }else{
+        } else {
             $response->setStatus(Response::STATUS_UNKNOWN_COMMAND);
-            $this->reply($socket,$response);
+            $this->reply($socket, $response);
         }
     }
 
-    private function reply(Socket $socket,Response $response)
+    private function reply(Socket $socket, Response $response)
     {
         $data = serialize($response);
         $socket->sendAll(Pack::pack($data));
