@@ -1,7 +1,10 @@
 # crontab
 
-## 脚本测试
+## Script Test
+
 ```php
+<?php
+
 use EasySwoole\Crontab\Crontab;
 use EasySwoole\Crontab\Tests\Jobs\JobPerMin;
 
@@ -9,16 +12,16 @@ require_once 'vendor/autoload.php';
 
 
 $http = new Swoole\Http\Server('0.0.0.0', 9501);
+$crontab = new Crontab();
+$crontab->register(new JobPerMin());
 
-Crontab::getInstance()->register(new JobPerMin());
+$crontab->attachToServer($http);
+$http->on('request', function ($request, $response) use ($crontab) {
 
-Crontab::getInstance()->__attachServer($http);
-$http->on('request', function ($request, $response) {
-
-    $ret = Crontab::getInstance()->rightNow('JobPerMin');
+    $ret = $crontab->rightNow('JobPerMin');
 
     $response->header('Content-Type', 'text/plain');
-    $response->end('Hello World '.$ret);
+    $response->end('Hello World ' . $ret);
 });
 
 $http->start();
