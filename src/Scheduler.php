@@ -22,7 +22,7 @@ class Scheduler extends AbstractProcess
     protected function run($arg)
     {
         $this->crontabInstance = $arg['crontabInstance'];
-        $this->schedulerTable = $arg['schedulerTable'];
+        $this->schedulerTable = Crontab::getInstance()->schedulerTable();
         //异常的时候，worker会退出。先清空一遍规则,禁止循环的时候删除key
         $keys = [];
         foreach ($this->schedulerTable as $key => $value) {

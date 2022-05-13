@@ -5,6 +5,7 @@ namespace EasySwoole\Crontab;
 
 
 use EasySwoole\Component\Process\Socket\UnixProcessConfig;
+use EasySwoole\Component\Singleton;
 use EasySwoole\Crontab\Exception\Exception;
 use EasySwoole\Crontab\Protocol\Command;
 use EasySwoole\Crontab\Protocol\Pack;
@@ -16,6 +17,8 @@ use EasySwoole\Component\Process\Config as ProcessConfig;
 
 class Crontab
 {
+    use Singleton;
+
     private $schedulerTable;
     private $workerStatisticTable;
     private $jobs = [];
