@@ -21,6 +21,7 @@ class Crontab
     private $jobs = [];
     /** @var Config */
     private $config;
+    private $hasAttach = false;
 
     function __construct(?Config $config = null)
     {
@@ -61,6 +62,13 @@ class Crontab
         if (empty($this->jobs)) {
             return;
         }
+
+        if($this->hasAttach){
+            return;
+        }
+
+        $this->hasAttach = true;
+
         $c = new ProcessConfig();
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
