@@ -80,8 +80,9 @@ class Crontab
         ]);
         $server->addProcess((new Scheduler($c))->getProcess());
 
+        //创建常规任务worker
         for ($i = 0; $i < $this->config->getWorkerNum(); $i++) {
-            //设置统计table信息
+            //设置统计table信息和worker注册
             $this->workerStatisticTable->set($i, [
                 'runningNum' => 0
             ]);
@@ -99,14 +100,40 @@ class Crontab
             $c->setSocketFile($this->indexToSockFile($i));
             $server->addProcess((new Worker($c))->getProcess());
         }
+        //创建特权进程
+        foreach ($this->jobs as $name => $job){
+            if($job instanceof PrivilegeJobInterface){
+                $c = new UnixProcessConfig();
+                $c->setEnableCoroutine(true);
+                $c->setProcessName("{$this->config->getServerName()}.CrontabWorker.{$name}");
+                $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
+                $c->setArg([
+                    'jobs' => $this->jobs,
+                    'schedulerTable' => $this->schedulerTable,
+                    'workerStatisticTable' => $this->workerStatisticTable,
+                    'crontabInstance' => $this,
+                    'workerIndex' => $name
+                ]);
+                $c->setSocketFile($this->indexToSockFile($i));
+                $server->addProcess((new Worker($c))->getProcess());
+            }
+        }
     }
 
     public function rightNow(string $jobName): ?Response
     {
+        if(!isset($this->jobs[$jobName])){
+            throw new Exception("crontab job {$jobName} not exist");
+        }
         $request = new Command();
         $request->setCommand(Command::COMMAND_EXEC_JOB);
         $request->setArg($jobName);
-        return $this->sendToWorker($request, $this->idleWorkerIndex());
+        if($this->jobs[$jobName] instanceof PrivilegeJobInterface){
+            return $this->sendToWorker($request, $jobName);
+        }else{
+            return $this->sendToWorker($request, $this->idleWorkerIndex());
+        }
+
     }
 
     public function stop(string $jobName): bool
@@ -165,6 +192,9 @@ class Crontab
         $index = 0;
         $min = null;
         foreach ($this->workerStatisticTable as $key => $item) {
+            if(!is_numeric($key)){
+                continue;
+            }
             $runningNum = intval($item['runningNum']);
             if ($min === null) {
                 $min = $runningNum;
@@ -177,12 +207,12 @@ class Crontab
         return $index;
     }
 
-    private function indexToSockFile(int $index): string
+    private function indexToSockFile(int|string $index): string
     {
         return $this->config->getTempDir() . "/{$this->config->getServerName()}.CrontabWorker.{$index}.sock";
     }
 
-    private function sendToWorker(Command $command, int $index): ?Response
+    private function sendToWorker(Command $command, int|string $index): ?Response
     {
         $data = Pack::pack(serialize($command));
         $client = new UnixClient($this->indexToSockFile($index), 10 * 1024 * 1024);
