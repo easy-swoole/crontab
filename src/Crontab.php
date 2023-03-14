@@ -114,7 +114,7 @@ class Crontab
                     'crontabInstance' => $this,
                     'workerIndex' => $name
                 ]);
-                $c->setSocketFile($this->indexToSockFile($i));
+                $c->setSocketFile($this->indexToSockFile($name));
                 $server->addProcess((new Worker($c))->getProcess());
             }
         }
