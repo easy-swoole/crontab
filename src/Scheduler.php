@@ -52,6 +52,8 @@ class Scheduler extends AbstractProcess
     {
         foreach ($this->schedulerTable as $jobName => $task) {
             if (intval($task['isStop']) == 1) {
+                $timerId = $this->timerIds[$jobName];
+                Timer::getInstance()->clear($timerId);
                 continue;
             }
             $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
