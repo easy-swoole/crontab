@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "php": ">=7.1.0",
+        "php": ">=8.0",
         "easyswoole/component": "^2.0",
         "dragonmantank/cron-expression": "^2.2"
     },
