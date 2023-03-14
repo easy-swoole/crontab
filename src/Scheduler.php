@@ -52,6 +52,12 @@ class Scheduler extends AbstractProcess
     {
         foreach ($this->schedulerTable as $jobName => $task) {
             if (intval($task['isStop']) == 1) {
+                // 删除已添加的定时器
+                if(isset($this->timerIds[$jobName])){
+                    $timerId = $this->timerIds[$jobName];
+                    Timer::getInstance()->clear($timerId);
+                    unset($this->timerIds[$jobName]);
+                }
                 continue;
             }
             $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
