@@ -9,7 +9,6 @@ use EasySwoole\Spl\SplBean;
 class Config extends SplBean
 {
     protected $serverName = "EasySwoole";
-    protected $workerNum = 3;
     protected $tempDir;
     /** @var callable|null */
     protected $onException;
@@ -33,18 +32,6 @@ class Config extends SplBean
     /**
      * @return int
      */
-    public function getWorkerNum(): int
-    {
-        return $this->workerNum;
-    }
-
-    /**
-     * @param int $workerNum
-     */
-    public function setWorkerNum(int $workerNum): void
-    {
-        $this->workerNum = $workerNum;
-    }
 
     /**
      * @return mixed

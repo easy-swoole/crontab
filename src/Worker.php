@@ -16,20 +16,13 @@ class Worker extends AbstractUnixProcess
     /** @var Crontab */
     private $crontabInstance;
     /** @var Table */
-    private $workerStatisticTable;
     private $jobs = [];
-    private $workerIndex = 0;
     /** @var Table */
     private $schedulerTable;
 
     public function run($arg)
     {
         $this->crontabInstance = $arg['crontabInstance'];
-        $this->workerStatisticTable = $arg['workerStatisticTable'];
-        $this->workerIndex = $arg['workerIndex'];
-        $this->workerStatisticTable->set($this->workerIndex, [
-            'runningNum' => 0
-        ]);
         $this->schedulerTable = $arg['schedulerTable'];
         $this->jobs = $arg['jobs'];
         parent::run($arg);
@@ -63,7 +56,6 @@ class Worker extends AbstractUnixProcess
             if (isset($this->jobs[$jobName])) {
                 /** @var JobInterface $job */
                 $job = $this->jobs[$jobName];
-                $this->workerStatisticTable->incr($this->workerIndex, 'runningNum', 1);
                 $this->schedulerTable->incr($jobName, 'taskRunTimes', 1);
                 $this->schedulerTable->set($jobName, ['taskCurrentRunTime' => time()]);
                 try {
@@ -83,7 +75,6 @@ class Worker extends AbstractUnixProcess
                         }
                     }
                 } finally {
-                    $this->workerStatisticTable->decr($this->workerIndex, 'runningNum', 1);
                     $this->reply($socket, $response);
                 }
             } else {

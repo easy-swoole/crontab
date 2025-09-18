@@ -17,7 +17,6 @@ use EasySwoole\Component\Process\Config as ProcessConfig;
 class Crontab
 {
     private $schedulerTable;
-    private $workerStatisticTable;
     private $jobs = [];
     /** @var Config */
     private $config;
@@ -36,10 +35,6 @@ class Crontab
         $this->schedulerTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);
         $this->schedulerTable->column('isStop', Table::TYPE_INT, 1);
         $this->schedulerTable->create();
-
-        $this->workerStatisticTable = new Table(1024);
-        $this->workerStatisticTable->column('runningNum', Table::TYPE_INT, 8);
-        $this->workerStatisticTable->create();
     }
 
     function getConfig(): Config
@@ -69,6 +64,7 @@ class Crontab
 
         $this->hasAttach = true;
 
+        //创建调度进程
         $c = new ProcessConfig();
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
@@ -81,25 +77,18 @@ class Crontab
         $server->addProcess((new Scheduler($c))->getProcess());
 
         //创建常规任务worker
-        for ($i = 0; $i < $this->config->getWorkerNum(); $i++) {
-            //设置统计table信息和worker注册
-            $this->workerStatisticTable->set($i, [
-                'runningNum' => 0
-            ]);
-            $c = new UnixProcessConfig();
-            $c->setEnableCoroutine(true);
-            $c->setProcessName("{$this->config->getServerName()}.CrontabWorker.{$i}");
-            $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
-            $c->setArg([
-                'jobs' => $this->jobs,
-                'schedulerTable' => $this->schedulerTable,
-                'workerStatisticTable' => $this->workerStatisticTable,
-                'crontabInstance' => $this,
-                'workerIndex' => $i
-            ]);
-            $c->setSocketFile($this->indexToSockFile($i));
-            $server->addProcess((new Worker($c))->getProcess());
-        }
+        $c = new UnixProcessConfig();
+        $c->setEnableCoroutine(true);
+        $c->setProcessName("{$this->config->getServerName()}.CrontabWorker");
+        $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
+        $c->setArg([
+            'jobs' => $this->jobs,
+            'schedulerTable' => $this->schedulerTable,
+            'crontabInstance' => $this,
+        ]);
+        $c->setSocketFile($this->indexToSockFile());
+        $server->addProcess((new Worker($c))->getProcess());
+
         //创建特权进程
         foreach ($this->jobs as $name => $job){
             if($job instanceof PrivilegeJobInterface){
@@ -110,7 +99,6 @@ class Crontab
                 $c->setArg([
                     'jobs' => $this->jobs,
                     'schedulerTable' => $this->schedulerTable,
-                    'workerStatisticTable' => $this->workerStatisticTable,
                     'crontabInstance' => $this,
                     'workerIndex' => $name
                 ]);
@@ -129,10 +117,11 @@ class Crontab
         $request->setCommand(Command::COMMAND_EXEC_JOB);
         $request->setArg($jobName);
         if($this->jobs[$jobName] instanceof PrivilegeJobInterface){
-            return $this->sendToWorker($request, $jobName);
+            $sockFile = $this->indexToSockFile($jobName);
         }else{
-            return $this->sendToWorker($request, $this->idleWorkerIndex());
+            $sockFile = $this->indexToSockFile();
         }
+        return static::sendToWorker($request,$sockFile);
 
     }
 
@@ -187,35 +176,15 @@ class Crontab
         return $this->schedulerTable;
     }
 
-    private function idleWorkerIndex(): int
-    {
-        $index = 0;
-        $min = null;
-        foreach ($this->workerStatisticTable as $key => $item) {
-            if(!is_numeric($key)){
-                continue;
-            }
-            $runningNum = intval($item['runningNum']);
-            if ($min === null) {
-                $min = $runningNum;
-            }
-            if ($runningNum < $min) {
-                $index = $key;
-                $min = $runningNum;
-            }
-        }
-        return $index;
-    }
-
-    private function indexToSockFile(int|string $index): string
+    private function indexToSockFile(string $index = 'normal'): string
     {
         return $this->config->getTempDir() . "/{$this->config->getServerName()}.CrontabWorker.{$index}.sock";
     }
 
-    private function sendToWorker(Command $command, int|string $index): ?Response
+    public static function sendToWorker(Command $command, string $sockFile): ?Response
     {
         $data = Pack::pack(serialize($command));
-        $client = new UnixClient($this->indexToSockFile($index), 10 * 1024 * 1024);
+        $client = new UnixClient($sockFile, 10 * 1024 * 1024);
         $client->send($data);
         $data = $client->recv(3);
         if ($data) {
