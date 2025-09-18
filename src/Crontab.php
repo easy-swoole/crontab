@@ -84,7 +84,7 @@ class Crontab
         $c->setArg([
             'jobs' => $this->jobs,
             'schedulerTable' => $this->schedulerTable,
-            'crontabInstance' => $this,
+            'onException'=>$this->config->getOnException()
         ]);
         $c->setSocketFile($this->indexToSockFile());
         $server->addProcess((new Worker($c))->getProcess());
@@ -99,8 +99,7 @@ class Crontab
                 $c->setArg([
                     'jobs' => $this->jobs,
                     'schedulerTable' => $this->schedulerTable,
-                    'crontabInstance' => $this,
-                    'workerIndex' => $name
+                    'onException'=>$this->config->getOnException()
                 ]);
                 $c->setSocketFile($this->indexToSockFile($name));
                 $server->addProcess((new Worker($c))->getProcess());

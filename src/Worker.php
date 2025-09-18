@@ -14,17 +14,17 @@ use Swoole\Table;
 class Worker extends AbstractUnixProcess
 {
     /** @var Crontab */
-    private $crontabInstance;
     /** @var Table */
     private $jobs = [];
     /** @var Table */
     private $schedulerTable;
+    private $onException;
 
     public function run($arg)
     {
-        $this->crontabInstance = $arg['crontabInstance'];
         $this->schedulerTable = $arg['schedulerTable'];
         $this->jobs = $arg['jobs'];
+        $this->onException = $arg['onException'];
         parent::run($arg);
     }
 
@@ -67,9 +67,8 @@ class Worker extends AbstractUnixProcess
                     try {
                         $job->onException($throwable);
                     } catch (\Throwable $t) {
-                        $call = $this->crontabInstance->getConfig()->getOnException();
-                        if (is_callable($call)) {
-                            call_user_func($call, $t);
+                        if (is_callable($this->onException)) {
+                            call_user_func($this->onException, $t);
                         } else {
                             throw $t;
                         }
