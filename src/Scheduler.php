@@ -76,6 +76,11 @@ class Scheduler extends AbstractProcess
             }
             $distanceTime = $nextRunTime - time();
             $timerId = Timer::getInstance()->after($distanceTime * 1000, function () use ($jobName) {
+                $taskInfo = $this->schedulerTable->get($jobName);
+                if (intval($taskInfo['isStop']) == 1) {
+                    unset($this->timerIds[$jobName]);
+                    return;
+                }
                 unset($this->timerIds[$jobName]);
                 if(isset($this->sockFileMap[$jobName])){
                     $sockFile = $this->sockFileMap[$jobName];
@@ -85,7 +90,7 @@ class Scheduler extends AbstractProcess
                 $request = new Command();
                 $request->setCommand(Command::COMMAND_EXEC_JOB);
                 $request->setArg($jobName);
-                return Crontab::sendToWorker($request,$sockFile);
+                Crontab::sendToWorker($request,$sockFile);
             });
             if ($timerId) {
                 $this->timerIds[$jobName] = $timerId;
