@@ -4,6 +4,7 @@
 namespace EasySwoole\Crontab;
 
 
+use Cron\CronExpression;
 use EasySwoole\Component\Process\Socket\UnixProcessConfig;
 use EasySwoole\Crontab\Exception\Exception;
 use EasySwoole\Crontab\Protocol\Command;
@@ -46,6 +47,9 @@ class Crontab
     public function register(JobInterface $job): Crontab
     {
         if (!isset($this->jobs[$job->jobName()])) {
+            if(!CronExpression::isValidExpression($job->crontabRule())){
+                throw new Exception("crontab rule for {$job->jobName()} is invalid");
+            }
             $this->jobs[$job->jobName()] = $job;
             return $this;
         } else {
@@ -171,6 +175,9 @@ class Crontab
     function resetJobRule($jobName, $taskRule): bool
     {
         if (isset($this->jobs[$jobName])) {
+            if(!CronExpression::isValidExpression($taskRule)){
+                throw new Exception("crontab rule for {$jobName} is invalid");
+            }
             $this->schedulerTable->set($jobName, ['taskRule' => $taskRule]);
             return true;
         } else {

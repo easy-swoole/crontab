@@ -69,11 +69,16 @@ class Scheduler extends AbstractProcess
             $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
             if ($task['taskNextRunTime'] != $nextRunTime) {
                 $this->schedulerTable->set($jobName, ['taskNextRunTime' => $nextRunTime]);
+            }else{
+                //本轮已经创建过任务
+                continue;
             }
+
             //本轮已经创建过任务
             if (isset($this->timerIds[$jobName])) {
                 continue;
             }
+
             $distanceTime = $nextRunTime - time();
             $timerId = Timer::getInstance()->after($distanceTime * 1000, function () use ($jobName) {
                 $taskInfo = $this->schedulerTable->get($jobName);
