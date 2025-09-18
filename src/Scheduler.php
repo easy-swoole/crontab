@@ -69,9 +69,6 @@ class Scheduler extends AbstractProcess
             $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
             if ($task['taskNextRunTime'] != $nextRunTime) {
                 $this->schedulerTable->set($jobName, ['taskNextRunTime' => $nextRunTime]);
-            }else{
-                //本轮已经创建过任务
-                continue;
             }
 
             //本轮已经创建过任务
