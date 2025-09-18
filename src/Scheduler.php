@@ -7,21 +7,20 @@ namespace EasySwoole\Crontab;
 use Cron\CronExpression;
 use EasySwoole\Component\Process\AbstractProcess;
 use EasySwoole\Component\Timer;
+use EasySwoole\Crontab\Protocol\Command;
 use Swoole\Table;
 
 class Scheduler extends AbstractProcess
 {
     /** @var Table */
     private $schedulerTable;
-
-    /** @var Crontab */
-    private $crontabInstance;
+    private array $sockFileMap;
 
     private $timerIds = [];
 
     protected function run($arg)
     {
-        $this->crontabInstance = $arg['crontabInstance'];
+        $this->sockFileMap = $arg['sockFileMap'];
         $this->schedulerTable = $arg['schedulerTable'];
         //异常的时候，worker会退出。先清空一遍规则,禁止循环的时候删除key
         $keys = [];
@@ -71,16 +70,15 @@ class Scheduler extends AbstractProcess
             $distanceTime = $nextRunTime - time();
             $timerId = Timer::getInstance()->after($distanceTime * 1000, function () use ($jobName) {
                 unset($this->timerIds[$jobName]);
-                try {
-                    $this->crontabInstance->rightNow($jobName);
-                } catch (\Throwable $throwable) {
-                    $call = $this->crontabInstance->getConfig()->getOnException();
-                    if (is_callable($call)) {
-                        call_user_func($call, $throwable);
-                    } else {
-                        throw $throwable;
-                    }
+                if(isset($this->sockFileMap[$jobName])){
+                    $sockFile = $this->sockFileMap[$jobName];
+                }else{
+                    $sockFile = $this->sockFileMap['normal'];
                 }
+                $request = new Command();
+                $request->setCommand(Command::COMMAND_EXEC_JOB);
+                $request->setArg($jobName);
+                return Crontab::sendToWorker($request,$sockFile);
             });
             if ($timerId) {
                 $this->timerIds[$jobName] = $timerId;

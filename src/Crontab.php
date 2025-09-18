@@ -69,10 +69,17 @@ class Crontab
         $c->setEnableCoroutine(true);
         $c->setProcessName("{$this->config->getServerName()}.CrontabScheduler");
         $c->setProcessGroup("{$this->config->getServerName()}.Crontab");
+        $sockFileMap = [];
+        $sockFileMap['normal'] = $this->indexToSockFile();
+        foreach ($this->jobs as $job) {
+            if($job instanceof PrivilegeJobInterface){
+                $sockFileMap[$job->jobName()] = $this->indexToSockFile($job->jobName());
+            }
+        }
         $c->setArg([
             'jobs' => $this->jobs,
             'schedulerTable' => $this->schedulerTable,
-            'crontabInstance' => $this
+            'sockFileMap' => $sockFileMap
         ]);
         $server->addProcess((new Scheduler($c))->getProcess());
 
