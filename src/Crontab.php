@@ -29,7 +29,8 @@ class Crontab
         }
         $this->config = $config;
         $this->schedulerTable = new Table(2048);
-        $this->schedulerTable->column('taskRule', Table::TYPE_STRING, 35);
+        $this->schedulerTable->column('taskRule', Table::TYPE_STRING, 64);
+        $this->schedulerTable->column('taskName', Table::TYPE_STRING, 128);
         $this->schedulerTable->column('taskRunTimes', Table::TYPE_INT, 8);
         $this->schedulerTable->column('taskNextRunTime', Table::TYPE_INT, 10);
         $this->schedulerTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);

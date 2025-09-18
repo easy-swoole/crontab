@@ -38,11 +38,18 @@ class Scheduler extends AbstractProcess
          */
         foreach ($jobs as $jobName => $job) {
             $nextTime = CronExpression::factory($job->crontabRule())->getNextRunDate()->getTimestamp();
-            $this->schedulerTable->set($jobName, ['taskRule' => $job->crontabRule(), 'taskRunTimes' => 0, 'taskNextRunTime' => $nextTime, 'taskCurrentRunTime' => 0, 'isStop' => 0]);
+            $this->schedulerTable->set($jobName, [
+                'taskName'=>$jobName,
+                'taskRule' => $job->crontabRule(),
+                'taskRunTimes' => 0,
+                'taskNextRunTime' => $nextTime,
+                'taskCurrentRunTime' => 0,
+                'isStop' => 0
+            ]);
         }
         $this->cronProcess();
-        //60无法被8整除。
-        Timer::getInstance()->loop(8 * 1000, function () {
+        //60无法被7整除。
+        Timer::getInstance()->loop(7 * 1000, function () {
             $this->cronProcess();
         });
     }
