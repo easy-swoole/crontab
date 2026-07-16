@@ -23,7 +23,7 @@ class Crontab
     private $config;
     private $hasAttach = false;
 
-    function __construct(?Config $config = null)
+    function __construct(Config|null $config = null)
     {
         if ($config == null) {
             $config = new Config();
