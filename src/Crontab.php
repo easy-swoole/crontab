@@ -17,11 +17,10 @@ use EasySwoole\Component\Process\Config as ProcessConfig;
 
 class Crontab
 {
-    private $schedulerTable;
-    private $jobs = [];
-    /** @var Config */
-    private $config;
-    private $hasAttach = false;
+    private Table $schedulerTable;
+    private array $jobs = [];
+    private Config $config;
+    private bool $hasAttach = false;
 
     function __construct(Config|null $config = null)
     {
@@ -36,6 +35,7 @@ class Crontab
         $this->schedulerTable->column('taskNextRunTime', Table::TYPE_INT, 10);
         $this->schedulerTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);
         $this->schedulerTable->column('isStop', Table::TYPE_INT, 1);
+        $this->schedulerTable->column('needRestJobTimer', Table::TYPE_INT, 1);
         $this->schedulerTable->create();
     }
 
@@ -57,7 +57,7 @@ class Crontab
         }
     }
 
-    public function attachToServer(Server $server)
+    public function attachToServer(Server $server): void
     {
         if (empty($this->jobs)) {
             return;
@@ -178,7 +178,7 @@ class Crontab
             if(!CronExpression::isValidExpression($taskRule)){
                 throw new Exception("crontab rule for {$jobName} is invalid");
             }
-            $this->schedulerTable->set($jobName, ['taskRule' => $taskRule]);
+            $this->schedulerTable->set($jobName, ['taskRule' => $taskRule,'needRestJobTimer'=>1]);
             return true;
         } else {
             return false;

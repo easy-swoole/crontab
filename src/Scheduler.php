@@ -66,7 +66,15 @@ class Scheduler extends AbstractProcess
                 }
                 continue;
             }
-            $nextRunTime = CronExpression::factory($task['taskRule'])->getNextRunDate()->getTimestamp();
+            //如果重置过规则
+            if($task['needRestJobTimer'] == 1){
+                $timerId = $this->timerIds[$jobName];
+                Timer::getInstance()->clear($timerId);
+                unset($this->timerIds[$jobName]);
+                $this->schedulerTable->set($jobName, ['needRestJobTimer' => 0]);
+            }
+
+            $nextRunTime = (new CronExpression($task['taskRule']))->getNextRunDate()->getTimestamp();
             if ($task['taskNextRunTime'] != $nextRunTime) {
                 $this->schedulerTable->set($jobName, ['taskNextRunTime' => $nextRunTime]);
             }
