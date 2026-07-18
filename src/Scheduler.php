@@ -68,9 +68,12 @@ class Scheduler extends AbstractProcess
             }
             //如果重置过规则
             if($task['needRestJobTimer'] == 1){
-                $timerId = $this->timerIds[$jobName];
-                Timer::getInstance()->clear($timerId);
-                unset($this->timerIds[$jobName]);
+                // 删除已添加的定时器
+                if(isset($this->timerIds[$jobName])){
+                    $timerId = $this->timerIds[$jobName];
+                    Timer::getInstance()->clear($timerId);
+                    unset($this->timerIds[$jobName]);
+                }
                 $this->schedulerTable->set($jobName, ['needRestJobTimer' => 0]);
             }
 
@@ -85,13 +88,23 @@ class Scheduler extends AbstractProcess
             }
 
             $distanceTime = $nextRunTime - time();
+
+            //太久的任务先不设定定时器
+            if($distanceTime > 360){
+                continue;
+            }
+
             $timerId = Timer::getInstance()->after($distanceTime * 1000, function () use ($jobName) {
                 $taskInfo = $this->schedulerTable->get($jobName);
+                unset($this->timerIds[$jobName]);
+                /** 任务拦截检测 */
                 if (intval($taskInfo['isStop']) == 1) {
-                    unset($this->timerIds[$jobName]);
                     return;
                 }
-                unset($this->timerIds[$jobName]);
+                if (intval($taskInfo['needRestJobTimer']) == 1) {
+                    return;
+                }
+
                 if(isset($this->sockFileMap[$jobName])){
                     $sockFile = $this->sockFileMap[$jobName];
                 }else{

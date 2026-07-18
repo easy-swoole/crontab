@@ -139,7 +139,7 @@ class Crontab
     public function stop(string $jobName): bool
     {
         if (isset($this->jobs[$jobName])) {
-            $this->schedulerTable->set($jobName, ['isStop' => 1]);
+            $this->schedulerTable->set($jobName, ['isStop' => 1,'needRestJobTimer'=>1]);
             return true;
         } else {
             return false;
@@ -149,7 +149,7 @@ class Crontab
     public function stopAll(): bool
     {
         foreach ($this->schedulerTable as $key => $item) {
-            $this->schedulerTable->set($key, ['isStop' => 1]);
+            $this->schedulerTable->set($key, ['isStop' => 1,'needRestJobTimer'=>1]);
         }
         return true;
     }
