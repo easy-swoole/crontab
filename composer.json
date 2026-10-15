@@ -25,6 +25,11 @@
         }
     },
     "require-dev": {
-        "easyswoole/swoole-ide-helper": "^1.3"
+        "easyswoole/swoole-ide-helper": "^1.3",
+        "phpunit/phpunit": "^10.5"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:integration": "phpunit --testsuite Integration"
     }
 }

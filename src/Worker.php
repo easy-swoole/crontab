@@ -13,14 +13,13 @@ use Swoole\Table;
 
 class Worker extends AbstractUnixProcess
 {
-    /** @var Crontab */
-    /** @var Table */
-    private $jobs = [];
-    /** @var Table */
-    private $schedulerTable;
-    private $onException;
+    /** @var array<string, JobInterface> */
+    private array $jobs = [];
+    private Table $schedulerTable;
+    /** @var callable|null */
+    private mixed $onException = null;
 
-    public function run($arg)
+    public function run(mixed $arg): void
     {
         $this->schedulerTable = $arg['schedulerTable'];
         $this->jobs = $arg['jobs'];
@@ -28,7 +27,7 @@ class Worker extends AbstractUnixProcess
         parent::run($arg);
     }
 
-    function onAccept(Socket $socket)
+    public function onAccept(Socket $socket): void
     {
         $response = new Response();
 
@@ -86,7 +85,7 @@ class Worker extends AbstractUnixProcess
         }
     }
 
-    private function reply(Socket $socket, Response $response)
+    private function reply(Socket $socket, Response $response): void
     {
         $data = serialize($response);
         $socket->sendAll(Pack::pack($data));

@@ -17,13 +17,12 @@ class JobPerMinWithPrivilege implements PrivilegeJobInterface
         return '*/1 * * * *';
     }
 
-    public function run()
+    public function run(): void
     {
-        var_dump("JobPerMinWithPrivilege");
     }
 
-    public function onException(\Throwable $throwable)
+    public function onException(\Throwable $throwable): void
     {
-        // TODO: Implement onException() method.
+        throw $throwable;
     }
 }

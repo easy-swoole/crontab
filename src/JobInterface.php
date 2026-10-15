@@ -10,7 +10,7 @@ interface JobInterface
 
     public function crontabRule(): string;
 
-    public function run();
+    public function run(): mixed;
 
-    public function onException(\Throwable $throwable);
+    public function onException(\Throwable $throwable): void;
 }

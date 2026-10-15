@@ -12,13 +12,12 @@ use Swoole\Table;
 
 class Scheduler extends AbstractProcess
 {
-    /** @var Table */
-    private $schedulerTable;
+    private Table $schedulerTable;
     private array $sockFileMap;
 
-    private $timerIds = [];
+    private array $timerIds = [];
 
-    protected function run($arg)
+    protected function run(mixed $arg): void
     {
         $this->sockFileMap = $arg['sockFileMap'];
         $this->schedulerTable = $arg['schedulerTable'];
@@ -37,7 +36,7 @@ class Scheduler extends AbstractProcess
          * @var JobInterface $job
          */
         foreach ($jobs as $jobName => $job) {
-            $nextTime = CronExpression::factory($job->crontabRule())->getNextRunDate()->getTimestamp();
+            $nextTime = (new CronExpression($job->crontabRule()))->getNextRunDate()->getTimestamp();
             $this->schedulerTable->set($jobName, [
                 'taskName'=>$jobName,
                 'taskRule' => $job->crontabRule(),
@@ -54,7 +53,7 @@ class Scheduler extends AbstractProcess
         });
     }
 
-    private function cronProcess()
+    private function cronProcess(): void
     {
         foreach ($this->schedulerTable as $jobName => $task) {
             if (intval($task['isStop']) == 1) {
@@ -119,5 +118,11 @@ class Scheduler extends AbstractProcess
                 $this->timerIds[$jobName] = $timerId;
             }
         }
+    }
+
+    protected function onShutDown()
+    {
+        parent::onShutDown();
+        \Swoole\Timer::clearAll();
     }
 }

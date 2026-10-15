@@ -22,7 +22,7 @@ class Crontab
     private Config $config;
     private bool $hasAttach = false;
 
-    function __construct(Config|null $config = null)
+    public function __construct(?Config $config = null)
     {
         if ($config == null) {
             $config = new Config();
@@ -39,7 +39,7 @@ class Crontab
         $this->schedulerTable->create();
     }
 
-    function getConfig(): Config
+    public function getConfig(): Config
     {
         return $this->config;
     }
@@ -172,7 +172,7 @@ class Crontab
         return true;
     }
 
-    function resetJobRule($jobName, $taskRule): bool
+    public function resetJobRule(string $jobName, string $taskRule): bool
     {
         if (isset($this->jobs[$jobName])) {
             if(!CronExpression::isValidExpression($taskRule)){
@@ -185,7 +185,7 @@ class Crontab
         }
     }
 
-    function schedulerTable(): Table
+    public function schedulerTable(): Table
     {
         return $this->schedulerTable;
     }

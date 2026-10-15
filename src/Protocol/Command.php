@@ -10,21 +10,21 @@ class Command extends SplBean
 {
     const COMMAND_EXEC_JOB = 0x1;
 
-    protected $command;
-    protected $arg;
+    protected ?int $command = null;
+    protected mixed $arg = null;
 
     /**
-     * @return mixed
+     * @return int|null
      */
-    public function getCommand()
+    public function getCommand(): ?int
     {
         return $this->command;
     }
 
     /**
-     * @param mixed $command
+     * @param int $command
      */
-    public function setCommand($command): void
+    public function setCommand(int $command): void
     {
         $this->command = $command;
     }
@@ -32,7 +32,7 @@ class Command extends SplBean
     /**
      * @return mixed
      */
-    public function getArg()
+    public function getArg(): mixed
     {
         return $this->arg;
     }
@@ -40,7 +40,7 @@ class Command extends SplBean
     /**
      * @param mixed $arg
      */
-    public function setArg($arg): void
+    public function setArg(mixed $arg): void
     {
         $this->arg = $arg;
     }

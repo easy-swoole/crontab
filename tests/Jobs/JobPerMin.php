@@ -19,13 +19,12 @@ class JobPerMin implements JobInterface
         return '*/1 * * * *';
     }
 
-    public function run()
+    public function run(): int
     {
-        var_dump(time());
         return time();
     }
 
-    public function onException(\Throwable $throwable)
+    public function onException(\Throwable $throwable): void
     {
         throw $throwable;
     }

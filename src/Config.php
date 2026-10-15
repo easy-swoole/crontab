@@ -8,10 +8,10 @@ use EasySwoole\Spl\SplBean;
 
 class Config extends SplBean
 {
-    protected $serverName = "EasySwoole";
-    protected $tempDir;
+    protected string $serverName = "EasySwoole";
+    protected string $tempDir = '';
     /** @var callable|null */
-    protected $onException;
+    protected mixed $onException = null;
 
     /**
      * @return string
@@ -30,21 +30,17 @@ class Config extends SplBean
     }
 
     /**
-     * @return int
+     * @return string
      */
-
-    /**
-     * @return mixed
-     */
-    public function getTempDir()
+    public function getTempDir(): string
     {
         return $this->tempDir;
     }
 
     /**
-     * @param mixed $tempDir
+     * @param string $tempDir
      */
-    public function setTempDir($tempDir): void
+    public function setTempDir(string $tempDir): void
     {
         $this->tempDir = $tempDir;
     }

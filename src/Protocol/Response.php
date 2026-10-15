@@ -18,7 +18,7 @@ class Response extends SplBean
     const STATUS_JOB_NOT_EXIST = 301;
     const STATUS_JOB_EXEC_ERROR = 302;
 
-    private static $phrases = [
+    private static array $phrases = [
         self::STATUS_OK => 'OK',
         self::STATUS_PACKAGE_READ_TIMEOUT => 'crontab: recv unix socket timeout',
         self::STATUS_ILLEGAL_PACKAGE => 'crontab: unserialize response as an Response instance fail',
@@ -27,31 +27,31 @@ class Response extends SplBean
         self::STATUS_JOB_EXEC_ERROR => 'crontab: job exec error'
     ];
 
-    protected $status;
-    protected $result;
-    protected $msg;
+    protected ?int $status = null;
+    protected mixed $result = null;
+    protected ?string $msg = null;
 
     /**
-     * @return mixed
+     * @return int|null
      */
-    public function getStatus()
+    public function getStatus(): ?int
     {
         return $this->status;
     }
 
     /**
-     * @param mixed $status
+     * @param int $status
      */
-    public function setStatus($status): Response
+    public function setStatus(int $status): Response
     {
         $this->status = $status;
         return $this;
     }
 
     /**
-     * @return mixed
+     * @return string|null
      */
-    public function getResult()
+    public function getResult(): mixed
     {
         return $this->result;
     }
@@ -59,7 +59,7 @@ class Response extends SplBean
     /**
      * @param mixed $result
      */
-    public function setResult($result): void
+    public function setResult(mixed $result): void
     {
         $this->result = $result;
     }
@@ -67,21 +67,21 @@ class Response extends SplBean
     /**
      * @return mixed
      */
-    public function getMsg()
+    public function getMsg(): ?string
     {
         return $this->msg;
     }
 
     /**
-     * @param mixed $msg
+     * @param string $msg
      */
-    public function setMsg($msg): Response
+    public function setMsg(string $msg): Response
     {
         $this->msg = $msg;
         return $this;
     }
 
-    static function getReasonPhrase($statusCode): ?string
+    public static function getReasonPhrase(int $statusCode): ?string
     {
         return self::$phrases[$statusCode] ?? '';
     }
