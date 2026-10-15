@@ -53,16 +53,19 @@ class Worker extends AbstractUnixProcess
         if ($data->getCommand() === Command::COMMAND_EXEC_JOB) {
             $jobName = $data->getArg();
             if (isset($this->jobs[$jobName])) {
-                /** @var JobInterface $job */
                 $job = $this->jobs[$jobName];
                 $this->schedulerTable->incr($jobName, 'taskRunTimes', 1);
-                $this->schedulerTable->set($jobName, ['taskCurrentRunTime' => time()]);
+                $this->schedulerTable->set($jobName, ['taskLastRunTime' => time()]);
                 try {
                     $ret = $job->run();
                     $response->setResult($ret);
                     $response->setStatus(Response::STATUS_OK);
                 } catch (\Throwable $throwable) {
                     $response->setStatus(Response::STATUS_JOB_EXEC_ERROR);
+                    $this->schedulerTable->set($jobName, [
+                        'lastError' => $throwable->getMessage(),
+                        'lastErrorTime' => time(),
+                    ]);
                     try {
                         $job->onException($throwable);
                     } catch (\Throwable $t) {

@@ -17,6 +17,8 @@ use EasySwoole\Component\Process\Config as ProcessConfig;
 
 class Crontab
 {
+    private const TASK_NAME_MAX_LENGTH = 128;
+
     private Table $schedulerTable;
     private array $jobs = [];
     private Config $config;
@@ -28,14 +30,16 @@ class Crontab
             $config = new Config();
         }
         $this->config = $config;
-        $this->schedulerTable = new Table(2048);
+        $this->schedulerTable = new Table(512);
         $this->schedulerTable->column('taskRule', Table::TYPE_STRING, 64);
-        $this->schedulerTable->column('taskName', Table::TYPE_STRING, 128);
+        $this->schedulerTable->column('taskName', Table::TYPE_STRING, self::TASK_NAME_MAX_LENGTH);
         $this->schedulerTable->column('taskRunTimes', Table::TYPE_INT, 8);
         $this->schedulerTable->column('taskNextRunTime', Table::TYPE_INT, 10);
-        $this->schedulerTable->column('taskCurrentRunTime', Table::TYPE_INT, 10);
+        $this->schedulerTable->column('taskLastRunTime', Table::TYPE_INT, 10);
         $this->schedulerTable->column('isStop', Table::TYPE_INT, 1);
         $this->schedulerTable->column('needRestJobTimer', Table::TYPE_INT, 1);
+        $this->schedulerTable->column('lastError', Table::TYPE_STRING, 1024);
+        $this->schedulerTable->column('lastErrorTime', Table::TYPE_INT, 8);
         $this->schedulerTable->create();
     }
 
@@ -46,14 +50,19 @@ class Crontab
 
     public function register(JobInterface $job): Crontab
     {
-        if (!isset($this->jobs[$job->jobName()])) {
+        $jobName = $job->jobName();
+        if (strlen($jobName) > self::TASK_NAME_MAX_LENGTH) {
+            throw new Exception("crontab job name length cannot exceed " . self::TASK_NAME_MAX_LENGTH);
+        }
+
+        if (!isset($this->jobs[$jobName])) {
             if(!CronExpression::isValidExpression($job->crontabRule())){
-                throw new Exception("crontab rule for {$job->jobName()} is invalid");
+                throw new Exception("crontab rule for {$jobName} is invalid");
             }
-            $this->jobs[$job->jobName()] = $job;
+            $this->jobs[$jobName] = $job;
             return $this;
         } else {
-            throw new Exception("{$job->jobName()} hash been register");
+            throw new Exception("{$jobName} hash been register");
         }
     }
 

@@ -42,7 +42,9 @@ class Scheduler extends AbstractProcess
                 'taskRule' => $job->crontabRule(),
                 'taskRunTimes' => 0,
                 'taskNextRunTime' => $nextTime,
-                'taskCurrentRunTime' => 0,
+                'taskLastRunTime' => 0,
+                'lastError' => '',
+                'lastErrorTime' => 0,
                 'isStop' => 0
             ]);
         }

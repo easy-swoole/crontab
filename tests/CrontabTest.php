@@ -41,6 +41,26 @@ final class CrontabTest extends TestCase
         $crontab->register($job);
     }
 
+    public function testJobNameAtMaximumLengthCanBeRegistered(): void
+    {
+        $crontab = new Crontab();
+
+        self::assertSame(
+            $crontab,
+            $crontab->register($this->createJob(str_repeat('a', 128), '* * * * *'))
+        );
+    }
+
+    public function testJobNameExceedingMaximumLengthIsRejected(): void
+    {
+        $crontab = new Crontab();
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('crontab job name length cannot exceed 128');
+
+        $crontab->register($this->createJob(str_repeat('a', 129), '* * * * *'));
+    }
+
     public function testJobCanBeStoppedResumedAndReset(): void
     {
         $crontab = new Crontab();
