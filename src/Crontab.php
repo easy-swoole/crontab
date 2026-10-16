@@ -55,6 +55,15 @@ class Crontab
             throw new Exception("crontab job name length cannot exceed " . self::TASK_NAME_MAX_LENGTH);
         }
 
+        if ($job instanceof PrivilegeJobInterface) {
+            if (!preg_match('/\A[a-zA-Z0-9_-]+\z/', $jobName)) {
+                throw new Exception('privileged job name must contain only letters, digits, underscores and hyphens');
+            }
+            if ($jobName === 'normal') {
+                throw new Exception('privileged job name normal is reserved');
+            }
+        }
+
         if (!isset($this->jobs[$jobName])) {
             if(!CronExpression::isValidExpression($job->crontabRule())){
                 throw new Exception("crontab rule for {$jobName} is invalid");
@@ -105,7 +114,9 @@ class Crontab
         $c->setArg([
             'jobs' => $this->jobs,
             'schedulerTable' => $this->schedulerTable,
-            'onException'=>$this->config->getOnException()
+            'onException'=>$this->config->getOnException(),
+            'onWorkerStart'=>$this->config->getOnWorkerStart(),
+            'crontabWorkerName'=>"normal"
         ]);
         $c->setSocketFile($this->indexToSockFile());
         $server->addProcess((new Worker($c))->getProcess());
@@ -120,7 +131,9 @@ class Crontab
                 $c->setArg([
                     'jobs' => $this->jobs,
                     'schedulerTable' => $this->schedulerTable,
-                    'onException'=>$this->config->getOnException()
+                    'onException'=>$this->config->getOnException(),
+                    'onWorkerStart'=>$this->config->getOnWorkerStart(),
+                    'crontabWorkerName'=>$name
                 ]);
                 $c->setSocketFile($this->indexToSockFile($name));
                 $server->addProcess((new Worker($c))->getProcess());

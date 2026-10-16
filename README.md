@@ -32,6 +32,11 @@ $http->start();
 The value returned by `JobInterface::jobName()` must not exceed 128 bytes. An
 exception is thrown when registering a job whose name exceeds this limit.
 
+For jobs implementing `PrivilegeJobInterface`, names are also used in socket
+file paths. These names must be non-empty and contain only ASCII letters,
+digits, underscores (`_`) and hyphens (`-`). The name `normal` is reserved for
+the normal Worker. Invalid privileged job names are rejected during registration.
+
 ## Task Status
 
 Task status is stored in the scheduler table and can be read by task name:
@@ -54,3 +59,22 @@ The table includes the following runtime fields:
 
 `lastError` and `lastErrorTime` retain the most recent task execution error and
 are updated before the task's `onException()` handler is called.
+
+## Worker Start Callback
+
+Use `Config::setOnWorkerStart()` to run initialization code after a crontab
+Worker has initialized its internal state and before it starts listening for
+tasks. The callback receives the started `Worker` instance and is called for
+both the normal Worker and every privileged Worker.
+
+```php
+use EasySwoole\Crontab\Config;
+use EasySwoole\Crontab\Worker;
+
+$config = new Config();
+$config->setOnWorkerStart(static function (Worker $worker): void {
+    // Initialize resources used by this worker process.
+});
+
+$crontab = new Crontab($config);
+```

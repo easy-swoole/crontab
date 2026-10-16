@@ -7,11 +7,50 @@ namespace EasySwoole\Crontab\Tests;
 use EasySwoole\Crontab\Crontab;
 use EasySwoole\Crontab\Exception\Exception;
 use EasySwoole\Crontab\JobInterface;
+use EasySwoole\Crontab\PrivilegeJobInterface;
 use EasySwoole\Crontab\Tests\Jobs\JobPerMin;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class CrontabTest extends TestCase
 {
+    public static function invalidPrivilegedJobNames(): iterable
+    {
+        foreach (['', '../task', 'path/task', 'path\\task', "task\0name", "task\n", 'task name', 'task.name', 'normal'] as $name) {
+            yield [$name];
+        }
+    }
+
+    #[DataProvider('invalidPrivilegedJobNames')]
+    public function testInvalidPrivilegedJobNameIsRejected(string $name): void
+    {
+        $job = $this->createMock(PrivilegeJobInterface::class);
+        $job->method('jobName')->willReturn($name);
+        $job->method('crontabRule')->willReturn('* * * * *');
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('privileged job name');
+
+        (new Crontab())->register($job);
+    }
+
+    public function testValidPrivilegedJobNameCanBeRegistered(): void
+    {
+        $job = $this->createMock(PrivilegeJobInterface::class);
+        $job->method('jobName')->willReturn('Task_01-backup');
+        $job->method('crontabRule')->willReturn('* * * * *');
+        $crontab = new Crontab();
+
+        self::assertSame($crontab, $crontab->register($job));
+    }
+
+    public function testNormalJobNameIsNotRestrictedToSocketSafeCharacters(): void
+    {
+        $crontab = new Crontab();
+
+        self::assertSame($crontab, $crontab->register($this->createJob('App\\Jobs\\Backup', '* * * * *')));
+    }
+
     public function testJobCanBeRegistered(): void
     {
         $crontab = new Crontab();

@@ -12,6 +12,8 @@ class Config extends SplBean
     protected string $tempDir = '';
     /** @var callable|null */
     protected mixed $onException = null;
+    /** @var callable|null */
+    protected mixed $onWorkerStart = null;
 
     /**
      * @return string
@@ -54,11 +56,21 @@ class Config extends SplBean
     }
 
     /**
-     * @param callable|null $onException
+     * @param callable $onException
      */
-    public function setOnException(?callable $onException): void
+    public function setOnException(callable $onException): void
     {
         $this->onException = $onException;
+    }
+
+    public function getOnWorkerStart(): ?callable
+    {
+        return $this->onWorkerStart;
+    }
+
+    public function setOnWorkerStart(callable $onWorkerStart): void
+    {
+        $this->onWorkerStart = $onWorkerStart;
     }
 
     protected function initialize(): void

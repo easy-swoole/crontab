@@ -24,6 +24,10 @@ class Worker extends AbstractUnixProcess
         $this->schedulerTable = $arg['schedulerTable'];
         $this->jobs = $arg['jobs'];
         $this->onException = $arg['onException'];
+        $onWorkerStart = $arg['onWorkerStart'] ?? null;
+        if (is_callable($onWorkerStart)) {
+            call_user_func($onWorkerStart, $this);
+        }
         parent::run($arg);
     }
 
