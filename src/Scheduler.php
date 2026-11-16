@@ -21,31 +21,37 @@ class Scheduler extends AbstractProcess
     {
         $this->sockFileMap = $arg['sockFileMap'];
         $this->schedulerTable = $arg['schedulerTable'];
-        //异常的时候，worker会退出。先清空一遍规则,禁止循环的时候删除key
-        $keys = [];
-        foreach ($this->schedulerTable as $key => $value) {
-            $keys[] = $key;
+        $jobs = $arg['jobs'];
+        // The table belongs to the server and survives scheduler process restarts.
+        $removedJobs = [];
+        foreach ($this->schedulerTable as $jobName => $task) {
+            if (!isset($jobs[$jobName])) {
+                $removedJobs[] = $jobName;
+            }
         }
-        foreach ($keys as $key) {
-            $this->schedulerTable->del($key);
+        foreach ($removedJobs as $jobName) {
+            $this->schedulerTable->del($jobName);
         }
 
-        $jobs = $arg['jobs'];
-        /**
-         * @var  $jobName
-         * @var JobInterface $job
-         */
+        /** @var JobInterface $job */
         foreach ($jobs as $jobName => $job) {
-            $nextTime = (new CronExpression($job->crontabRule()))->getNextRunDate()->getTimestamp();
+            $task = $this->schedulerTable->get($jobName);
+            if ($task !== false && $task['taskName'] === (string) $jobName) {
+                continue;
+            }
+
+            $taskRule = ($task['taskRule'] ?? '') ?: $job->crontabRule();
+            $isStop = $task['isStop'] ?? 0;
+            $nextTime = $isStop === 1 ? 0 : (new CronExpression($taskRule))->getNextRunDate()->getTimestamp();
             $this->schedulerTable->set($jobName, [
                 'taskName'=>$jobName,
-                'taskRule' => $job->crontabRule(),
+                'taskRule' => $taskRule,
                 'taskRunTimes' => 0,
                 'taskNextRunTime' => $nextTime,
                 'taskLastRunTime' => 0,
                 'lastError' => '',
                 'lastErrorTime' => 0,
-                'isStop' => 0
+                'isStop' => $isStop
             ]);
         }
         $this->cronProcess();
@@ -59,6 +65,9 @@ class Scheduler extends AbstractProcess
     {
         foreach ($this->schedulerTable as $jobName => $task) {
             if (intval($task['isStop']) == 1) {
+                if ($task['taskNextRunTime'] !== 0) {
+                    $this->schedulerTable->set($jobName, ['taskNextRunTime' => 0]);
+                }
                 // 删除已添加的定时器
                 if(isset($this->timerIds[$jobName])){
                     $timerId = $this->timerIds[$jobName];

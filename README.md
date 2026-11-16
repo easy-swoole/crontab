@@ -232,7 +232,7 @@ $crontab->resetJobRule('Heartbeat', '*/5 * * * *');
 | `stopAll()` / `resumeAll()` | 更新当前表中所有任务的暂停状态，返回 `true`。 |
 | `resetJobRule($jobName, $rule)` | 已注册且规则有效时返回 `true`；未知任务返回 `false`，规则无效抛出异常。 |
 
-暂停不会终止已经运行的任务，也不会阻止 `rightNow()` 手动执行。Scheduler 每 7 秒进行一次调度检查，状态更新和定时器调整并非同步完成。`resetJobRule()` 修改的是共享表中的运行规则，服务或 Scheduler 重新启动时仍从任务类的 `crontabRule()` 初始化。
+暂停不会终止已经运行的任务，也不会阻止 `rightNow()` 手动执行。Scheduler 每 7 秒进行一次调度检查，状态更新和定时器调整并非同步完成。`resetJobRule()` 修改的是共享表中的运行规则，同一次主服务运行期间，Scheduler 重启会保留运行规则和暂停状态。主服务重新启动时，任务使用其 `crontabRule()` 初始化并恢复自动调度。
 
 ## 查询运行状态
 
@@ -258,7 +258,7 @@ foreach ($crontab->schedulerTable() as $name => $status) {
 | `taskName` | 任务名称，最大 128 字节。 | 注册的任务名 |
 | `taskRule` | 当前调度规则，字符串列容量为 64 字节。 | 任务的 Cron 表达式 |
 | `taskRunTimes` | 执行尝试次数，在调用 `run()` 前递增，包含失败和手动执行。 | `0` |
-| `taskNextRunTime` | 下次计划执行的 Unix 时间戳。 | 根据规则计算 |
+| `taskNextRunTime` | 下次计划触发的 Unix 时间戳。暂停时为 `0`，恢复后由 Scheduler 按当前规则重新计算。 | 根据规则计算，已暂停时为 `0` |
 | `taskLastRunTime` | 最近一次开始执行的 Unix 时间戳，不是完成时间或耗时。 | `0` |
 | `isStop` | 是否暂停自动调度，`1` 为暂停，`0` 为正常。 | `0` |
 | `needRestJobTimer` | 内部定时器重建标记，由 Scheduler 消费，通常无需业务代码操作。 | `0` |
